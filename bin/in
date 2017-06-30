@@ -11,8 +11,6 @@ cd "$1"
 
 mkdir -p /root/.kube
 
-echo "start"
-
 KUBE_URL=$(jq -r .source.cluster_url < "$payload")
 NAMESPACE=$(jq -r .source.namespace < "$payload")
 
@@ -31,16 +29,13 @@ if [[ "$KUBE_URL" =~ https.* ]]; then
 
     echo "$KUBE_CA" | base64 -d > $CA_PATH
 
-    if [[ "${KUBE_TOKEN}X" != "X" ]]; then
-      KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --token=\"$KUBE_TOKEN\""
-
-    else
-
-
+    if [[ "${KUBE_TOKEN}" == "X" ]]; then
       echo "$KUBE_KEY" | base64 -d > $KEY_PATH
       echo "$KUBE_CERT" | base64 -d > $CERT_PATH
 
       KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --client-key=$KEY_PATH --client-certificate=$CERT_PATH"
+    else
+      KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --token=$KUBE_TOKEN"
     fi
 fi
 
@@ -48,16 +43,12 @@ fi
 RESOURCE_TYPE=$(jq -r .source.resource_type < "$payload")
 RESOURCE_NAME=$(jq -r .source.resource_name < "$payload")
 
-echo "DDD: $KUBECTL"
-
 if [[ -z "$RESOURCE_TYPE" ]] || [[ -z "$RESOURCE_NAME" ]]; then
     result=""
 else
     export KUBECTL
 
     RESOURCE="$RESOURCE_TYPE/$RESOURCE_NAME"
-
-    echo "CMD: $KUBECTL get -o json \"$RESOURCE\""
 
     IMG=$($KUBECTL get -o json "$RESOURCE" | jq -r '.spec.template.spec.containers[0].image')
 
