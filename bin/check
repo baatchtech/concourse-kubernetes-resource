@@ -7,6 +7,9 @@ exec 1>&2 # send normal stdout to stderr for logging
 payload="$(mktemp "$TMPDIR/k8s-resource-request.XXXXXX")"
 cat > "$payload" <&0
 
+DEBUG=$(jq -r .source.debug < "$payload")
+[[ "$DEBUG" == "true" ]] && { echo "Enabling debug mode.";set -x; }
+
 cd "$1"
 
 mkdir -p /root/.kube
@@ -21,15 +24,22 @@ if [[ "$KUBE_URL" =~ https.* ]]; then
     KUBE_CA=$(jq -r .source.cluster_ca < "$payload")
     KUBE_KEY=$(jq -r .source.admin_key < "$payload")
     KUBE_CERT=$(jq -r .source.admin_cert < "$payload")
+    KUBE_TOKEN=$(jq -r .source.token < "$payload")
+
     CA_PATH="/root/.kube/ca.pem"
     KEY_PATH="/root/.kube/key.pem"
     CERT_PATH="/root/.kube/cert.pem"
 
     echo "$KUBE_CA" | base64 -d > $CA_PATH
-    echo "$KUBE_KEY" | base64 -d > $KEY_PATH
-    echo "$KUBE_CERT" | base64 -d > $CERT_PATH
 
-    KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --client-key=$KEY_PATH --client-certificate=$CERT_PATH"
+    if [[ "${KUBE_TOKEN}" -eq "" ]]; then
+      echo "$KUBE_KEY" | base64 -d > $KEY_PATH
+      echo "$KUBE_CERT" | base64 -d > $CERT_PATH
+
+      KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --client-key=$KEY_PATH --client-certificate=$CERT_PATH"
+    else
+      KUBECTL="$KUBECTL --certificate-authority=$CA_PATH --token=$KUBE_TOKEN"
+    fi
 fi
 
 # get kube resource id

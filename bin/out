@@ -32,13 +32,18 @@ rollingupdate() {
 start_job() {
     JOB=$1
     IMAGE=$2
-    K8S_UID=${3:-$(date +%s)}
+    RESOURCE_NAME=$3
+    JOB_UID=$(cat /proc/sys/kernel/random/uuid)
 
     [ -n "$JOB" ] || exit 1
     [ -n "$IMAGE" ] || exit 1
-    [ -n "$UID" ] || exit 1
+    [ -n "$RESOURCE_NAME" ] || exit 1
+    [ -n "$JOB_UID" ] || exit 1
 
-    cat "$JOB" | IMAGE=$IMAGE UID=$K8S_UID envsubst | $KUBECTL create -f -
+    # cleanup any stale deploy-tasks jobs
+    $KUBECTL delete job "$RESOURCE_NAME" 2&> /dev/null || true
+
+    cat "$JOB" | IMAGE=$IMAGE JOB_UID=$JOB_UID envsubst | $KUBECTL create -f -
 }
 
 DEBUG=$(jq -r .source.debug < "$payload")
@@ -110,7 +115,7 @@ case $RESOURCE_TYPE in
     replicationcontroller)
     rollingupdate "$RESOURCE_NAME" "$IMG";;
     job)
-    start_job "$RESOURCE_PATH" "$IMG" "$(date +%s)";;
+    start_job "$RESOURCE_PATH" "$IMG" "$RESOURCE_NAME";;
     *)
     exit 1
 esac
