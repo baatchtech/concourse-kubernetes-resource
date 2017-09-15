@@ -71,7 +71,7 @@ if [[ "$KUBE_URL" =~ https.* ]]; then
 
     echo "$KUBE_CA" | base64 -d > $CA_PATH
 
-    if [[ "${KUBE_TOKEN}" -eq "" ]]; then
+    if [[ "${KUBE_TOKEN}" = "" ]]; then
       echo "$KUBE_KEY" | base64 -d > $KEY_PATH
       echo "$KUBE_CERT" | base64 -d > $CERT_PATH
 
@@ -82,11 +82,26 @@ if [[ "$KUBE_URL" =~ https.* ]]; then
 fi
 
 # get image name
-IMG_FILE=$(jq -r .params.image_name < "$payload")
+IMG_FILE=$(jq -r '.params.image_name // ""' < "$payload")
 IMG=$(cat "$IMG_FILE")
-TAG_FILE=$(jq -r .params.image_tag < "$payload")
-TAG=$(cat "$TAG_FILE")
-IMG="$IMG:$TAG"
+
+DIGEST_FILE=$(jq -r '.params.image_digest // ""' < "$payload")
+if [[ "$DIGEST_FILE" != "" ]]; then
+  DIGEST=$(cat "$DIGEST_FILE")
+fi
+
+TAG_FILE=$(jq -r '.params.image_tag // ""' < "$payload")
+if [[ "$TAG_FILE" != "" ]]; then
+  TAG=$(cat "$TAG_FILE")
+fi
+
+if [[ "$DIGEST" != "" ]]; then
+  IMG="$IMG@$DIGEST"
+elif [[ "$TAG" != "" ]]; then
+  IMG="$IMG:$TAG"
+else
+  IMG="$IMG:latest"
+fi
 
 # get kube resource id
 RESOURCE_TYPE=$(jq -r .source.resource_type < "$payload")

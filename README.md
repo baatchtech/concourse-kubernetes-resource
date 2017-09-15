@@ -40,6 +40,9 @@ Applies a kubectl action.
 #### Parameters
 * `image_name`: *Required.* Path to file containing docker image name.
 * `image_tag`: *Required.* Path to file container docker image tag.
+* `image_digest`: *Required.* Path to file container docker image digest.
+
+image_tag and image_digest are mutually exclusive. image_digest has a highest priority.
 
 ## Example
 
